@@ -3,6 +3,7 @@ const express = require("express");
 const methodOverride = require("method-override");
 const { default: mongoose } = require("mongoose");
 const app = express();
+const ErrorHandler = require("./ErrorHandller");
 
 /* Models */
 
@@ -31,10 +32,10 @@ app.get("/products", async (req, res) => {
   const { category } = req.query;
   if (category) {
     const products = await Product.find({ category });
-    res.render("products/index", { products , category });
-  }else{
+    res.render("products/index", { products, category });
+  } else {
     const products = await Product.find({});
-    res.render("products/index", { products, category: 'All' });
+    res.render("products/index", { products, category: "All" });
   }
 });
 
@@ -48,30 +49,52 @@ app.post("/products", async (req, res) => {
   res.redirect(`/products/${product._id}`);
 });
 
-app.get("/products/:id", async (req, res) => {
-  const { id } = req.params;
-  const product = await Product.findById(id);
-  res.render("products/show", { product });
+app.get("/products/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+
+    res.render("products/show", { product });
+  } catch (error) {
+    next(new ErrorHandler("Product Not Found", 404));
+  }
 });
 
-app.get("/products/:id/edit", async (req, res) => {
-  const { id } = req.params;
-  const product = await Product.findById(id);
-  res.render("products/edit", { product });
+app.get("/products/:id/edit", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+    res.render("products/edit", { product });
+  } catch (error) {
+    next(new ErrorHandler("Product Not Found", 404));
+  }
 });
 
-app.put("/products/:id", async (req, res) => {
-  const { id } = req.params;
-  const product = await Product.findByIdAndUpdate(id, req.body, {
-    runValidators: true,
-  });
-  res.redirect(`/products/${product._id}`);
+app.put("/products/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findByIdAndUpdate(id, req.body, {
+      runValidators: true,
+    });
+    res.redirect(`/products/${product._id}`);
+  } catch (error) {
+    next(new ErrorHandler("Product Gagal Update", 404));
+  }
 });
 
-app.delete("/products/:id", async (req, res) => {
-  const { id } = req.params;
-  await Product.findByIdAndDelete(id);
-  res.redirect("/products");
+app.delete("/products/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await Product.findByIdAndDelete(id);
+    res.redirect("/products");
+  } catch (error) {
+    next(new ErrorHandler("Product Not Found", 404));
+  }
+});
+
+app.use((err, req, res, next) => {
+  const { status = 500, message = "Something Went Error" } = err;
+  res.status(status).send(message);
 });
 
 app.listen(3000, () => {
